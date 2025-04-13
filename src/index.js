@@ -1,15 +1,17 @@
+// delivery-service/src/index.js
 const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config();
+const deliveryRoutes = require('./routes/deliveryRoutes');
+const authMiddleware = require('./middleware/authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 6000;
 
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send('Delivery Service is Running...');
-});
+// Use delivery routes
+app.use('/api/deliveries', deliveryRoutes);
 
 mongoose.connect(process.env.MONGO_URL)
   .then(() => {
@@ -18,4 +20,6 @@ mongoose.connect(process.env.MONGO_URL)
       console.log(`Delivery Service running on port ${PORT}`);
     });
   })
-  .catch(err => console.log(err));
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+  });
