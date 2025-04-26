@@ -2,13 +2,31 @@
 const deliveryService = require('../services/deliveryService');
 
 // Create a new rider
+// delivery-service/src/controllers/deliveryController.js
 const createRider = async (req, res) => {
   try {
-    const riderData = req.body;
+    if (!req.files) {
+      return res.status(400).json({ message: 'No files uploaded' });
+    }
+
+    const riderData = {
+      ...req.body,
+      license: req.files.license[0].path,
+      insurance: req.files.insurance[0].path,
+      user: req.user.id // Assuming auth middleware attaches user
+    };
+
     const rider = await deliveryService.createRider(riderData);
-    res.status(201).json({ message: 'Rider created successfully', rider });
+    
+    res.status(201).json({ 
+      message: 'Documents uploaded successfully. Account pending verification.',
+      rider
+    });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ 
+      message: error.message || 'Document upload failed',
+      details: error.errors 
+    });
   }
 };
 

@@ -1,17 +1,40 @@
 // delivery-service/src/models/Rider.js
 const mongoose = require('mongoose');
 
+// delivery-service/src/models/Rider.js
 const RiderSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  phone: { type: String, required: true },
-  vehicle: { type: String, required: true }, // e.g., car, bike
-  license: { type: String, required: true },
-  insurance: { type: String, required: true },
-  isActive: { type: Boolean, default: false }, // Active or inactive rider
-  earnings: { type: Number, default: 0 }, // Rider's total earnings
-  createdAt: { type: Date, default: Date.now },
-});
+  user: { 
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  vehicle: { 
+    type: String, 
+    required: true,
+    enum: ['bicycle', 'motorcycle', 'car', 'van']
+  },
+  license: { 
+    type: String, 
+    required: true 
+  },
+  insurance: { 
+    type: String, 
+    required: true 
+  },
+  verificationStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
+  },
+  isActive: { 
+    type: Boolean, 
+    default: false 
+  },
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
+  }
+}, { versionKey: false });
 
 const Rider = mongoose.model('Rider', RiderSchema);
 

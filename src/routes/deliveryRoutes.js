@@ -2,10 +2,19 @@
 const express = require('express');
 const deliveryController = require('../controllers/deliveryController');
 const authMiddleware = require('../middleware/authMiddleware');
+const upload = require('../middleware/multer');
 const router = express.Router();
 
 // Create a rider (protected route)
-router.post('/riders', authMiddleware, deliveryController.createRider);
+router.post(
+    '/riders',
+    authMiddleware,
+    upload.fields([
+      { name: 'license', maxCount: 1 },
+      { name: 'insurance', maxCount: 1 }
+    ]),
+    deliveryController.createRider
+  );
 
 // Get rider by ID (protected route)
 router.get('/riders/:riderId', authMiddleware, deliveryController.getRiderById);
