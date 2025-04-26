@@ -8,7 +8,7 @@ const RiderSchema = new mongoose.Schema({
   vehicle: { type: String, required: true }, // e.g., car, bike
   license: { type: String, required: true },
   insurance: { type: String, required: true },
-  isActive: { type: Boolean, default: true }, // Active or inactive rider
+  isActive: { type: Boolean, default: false }, // Active or inactive rider
   earnings: { type: Number, default: 0 }, // Rider's total earnings
   createdAt: { type: Date, default: Date.now },
 });
