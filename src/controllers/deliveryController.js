@@ -8,12 +8,13 @@ const createRider = async (req, res) => {
     if (!req.files) {
       return res.status(400).json({ message: 'No files uploaded' });
     }
-
+    console.log(req.body.userId);
     const riderData = {
       ...req.body,
       license: req.files.license[0].path,
       insurance: req.files.insurance[0].path,
-      user: req.user.id // Assuming auth middleware attaches user
+      user: req.body.userId,
+      
     };
 
     const rider = await deliveryService.createRider(riderData);
