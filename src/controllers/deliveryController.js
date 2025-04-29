@@ -1,45 +1,79 @@
 // delivery-service/src/controllers/deliveryController.js
 const deliveryService = require('../services/deliveryService');
+const cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const createRider = async (req, res) => {
   try {
-   
     const userId = req.body.userId || req.headers['user-id'];
 
     if (!userId) {
       return res.status(400).json({ message: 'User ID is required' });
     }
 
-    if (!req.files) {
-      return res.status(400).json({ message: 'No files uploaded' });
+    if (!req.files || !req.files.license || !req.files.insurance) {
+      return res.status(400).json({ message: 'License and insurance files are required' });
     }
 
-    
+    const licenseUpload = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'image',
+          folder: 'rider_documents/license',
+        },
+        (error, result) => {
+          if (error) {
+            return reject(new Error('License upload failed: ' + error.message));
+          }
+          resolve(result.secure_url);
+        }
+      );
+      stream.end(req.files.license[0].buffer);
+    });
+
+    const insuranceUpload = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'image',
+          folder: 'rider_documents/insurance',
+        },
+        (error, result) => {
+          if (error) {
+            return reject(new Error('Insurance upload failed: ' + error.message));
+          }
+          resolve(result.secure_url);
+        }
+      );
+      stream.end(req.files.insurance[0].buffer);
+    });
+
     const riderData = {
-      ...req.body,  
-      license: req.files.license[0].path,
-      insurance: req.files.insurance[0].path,
-      user: userId,  
+      ...req.body,
+      license: licenseUpload,
+      insurance: insuranceUpload,
+      user: userId,
     };
 
-    
-    
-
-   
     const rider = await deliveryService.createRider(riderData);
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'Documents uploaded successfully. Account pending verification.',
-      rider
+      rider,
     });
   } catch (error) {
-    res.status(400).json({ 
+    console.error('Error in createRider:', error);
+    res.status(400).json({
       message: error.message || 'Document upload failed',
-      details: error.errors 
+      details: error.errors || {},
     });
   }
 };
-
 
 // Get rider by ID
 const getRiderById = async (req, res) => {
