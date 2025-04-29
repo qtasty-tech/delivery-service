@@ -1,24 +1,33 @@
 // delivery-service/src/controllers/deliveryController.js
 const deliveryService = require('../services/deliveryService');
 
-// Create a new rider
-// delivery-service/src/controllers/deliveryController.js
 const createRider = async (req, res) => {
   try {
+   
+    const userId = req.body.userId || req.headers['user-id'];
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
     if (!req.files) {
       return res.status(400).json({ message: 'No files uploaded' });
     }
-    console.log(req.body.userId);
+
+    
     const riderData = {
-      ...req.body,
+      ...req.body,  
       license: req.files.license[0].path,
       insurance: req.files.insurance[0].path,
-      user: req.body.userId,
-      
+      user: userId,  
     };
 
-    const rider = await deliveryService.createRider(riderData);
     
+    
+
+   
+    const rider = await deliveryService.createRider(riderData);
+
     res.status(201).json({ 
       message: 'Documents uploaded successfully. Account pending verification.',
       rider
@@ -30,6 +39,7 @@ const createRider = async (req, res) => {
     });
   }
 };
+
 
 // Get rider by ID
 const getRiderById = async (req, res) => {
