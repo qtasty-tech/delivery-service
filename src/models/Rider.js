@@ -30,11 +30,25 @@ const RiderSchema = new mongoose.Schema({
     type: Boolean, 
     default: false 
   },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number], 
+      default: [0, 0],
+    },
+  },
   createdAt: { 
     type: Date, 
     default: Date.now 
   }
 }, { versionKey: false });
+
+// Create a 2dsphere index for geospatial queries
+RiderSchema.index({ location: '2dsphere' });
 
 const Rider = mongoose.model('Rider', RiderSchema);
 

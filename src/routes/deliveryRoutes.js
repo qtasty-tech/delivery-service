@@ -22,10 +22,26 @@ router.get('/riders/:riderId', authMiddleware, deliveryController.getRiderById);
 // Create a new delivery (protected route)
 router.post('/deliveries', authMiddleware, deliveryController.createDelivery);
 
+// Get pending delivery for a rider (protected route)
+router.get('/deliveries/pending/:riderId', authMiddleware, deliveryController.getPendingDelivery);
+
+// Get active delivery for a rider (protected route)
+router.get('/deliveries/active/:riderId', authMiddleware, deliveryController.getActiveDelivery);
+
 // Get delivery by ID (protected route)
 router.get('/deliveries/:deliveryId', authMiddleware, deliveryController.getDeliveryById);
 
 // Update delivery status (protected route)
 router.put('/deliveries/:deliveryId/status/:status', authMiddleware, deliveryController.updateDeliveryStatus);
+
+// Accept delivery (protected route)
+router.put('/deliveries/:deliveryId/accept', authMiddleware, deliveryController.acceptDelivery);
+
+// Decline delivery (protected route)
+router.put('/deliveries/:deliveryId/decline', authMiddleware, deliveryController.declineDelivery);
+
+// Get rider by user ID (protected route)
+router.get('/riders/user/:userId', deliveryController.getRiderByUserId);
+
 
 module.exports = router;

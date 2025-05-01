@@ -86,6 +86,17 @@ const getRiderById = async (req, res) => {
   }
 };
 
+// Get rider by user ID
+const getRiderByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const rider = await deliveryService.getRiderByUserId(userId);
+    res.status(200).json({ rider });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 // Create a new delivery
 const createDelivery = async (req, res) => {
   try {
@@ -113,8 +124,56 @@ const updateDeliveryStatus = async (req, res) => {
   try {
     const { deliveryId, status } = req.params;
     const { earnings } = req.body;
+    const validStatuses = ['in-progress', 'pick-up', 'en_route', 'completed', 'failed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
     const updatedDelivery = await deliveryService.updateDeliveryStatus(deliveryId, status, earnings);
     res.status(200).json({ message: 'Delivery status updated', updatedDelivery });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Get pending delivery for a rider
+const getPendingDelivery = async (req, res) => {
+  try {
+    const { riderId } = req.params;
+    const delivery = await deliveryService.getPendingDeliveryByRider(riderId);
+    res.status(200).json({ delivery });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Get active delivery for a rider
+const getActiveDelivery = async (req, res) => {
+  try {
+    const { riderId } = req.params;
+    const delivery = await deliveryService.getActiveDeliveryByRider(riderId);
+    res.status(200).json({ delivery });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Accept delivery
+const acceptDelivery = async (req, res) => {
+  try {
+    const { deliveryId } = req.params;
+    const delivery = await deliveryService.acceptDelivery(deliveryId);
+    res.status(200).json({ message: 'Delivery accepted', delivery });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Decline delivery
+const declineDelivery = async (req, res) => {
+  try {
+    const { deliveryId } = req.params;
+    const delivery = await deliveryService.declineDelivery(deliveryId);
+    res.status(200).json({ message: 'Delivery declined', delivery });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -123,7 +182,12 @@ const updateDeliveryStatus = async (req, res) => {
 module.exports = {
   createRider,
   getRiderById,
+  getRiderByUserId,
   createDelivery,
   getDeliveryById,
   updateDeliveryStatus,
+  getPendingDelivery,
+  getActiveDelivery,
+  acceptDelivery,
+  declineDelivery
 };
