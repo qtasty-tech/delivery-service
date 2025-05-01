@@ -1,7 +1,6 @@
 // delivery-service/src/models/Rider.js
 const mongoose = require('mongoose');
 
-// delivery-service/src/models/Rider.js
 const RiderSchema = new mongoose.Schema({
   user: { 
     type: mongoose.Schema.Types.ObjectId,
@@ -37,8 +36,8 @@ const RiderSchema = new mongoose.Schema({
       default: 'Point',
     },
     coordinates: {
-      type: [Number], 
-      default: [0, 0],
+      type: [Number],  
+      required: true,
     },
   },
   createdAt: { 

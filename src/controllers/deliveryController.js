@@ -1,6 +1,7 @@
 // delivery-service/src/controllers/deliveryController.js
 const deliveryService = require('../services/deliveryService');
 const cloudinary = require('cloudinary').v2;
+const Rider = require('../models/Rider'); 
 
 // Configure Cloudinary
 cloudinary.config({
@@ -179,6 +180,53 @@ const declineDelivery = async (req, res) => {
   }
 };
 
+
+
+// Controller function to update rider location
+const updateLocation = async (req, res) => {
+  const { riderId } = req.params;  // Get riderId from request params
+  const { location } = req.body;  // Get location from request body
+
+  console.log("[updateLocation] Request received:", { riderId, location }); // Debugging log
+
+  // Validate the location
+  if (!location || !location.coordinates || location.coordinates.length !== 2) {
+    console.warn("[updateLocation] Invalid location data:", location); // Debugging log
+    return res.status(400).json({ message: 'Invalid location data' });
+  }
+
+  // Ensure the location is in GeoJSON format
+  const geoLocation = {
+    type: "Point",  // Set the type to "Point"
+    coordinates: location.coordinates,  // Ensure coordinates are in [longitude, latitude] format
+  };
+
+  try {
+    // Find the rider by riderId and update the location field
+    console.log("[updateLocation] Attempting to update rider location..."); // Debugging log
+
+    const rider = await Rider.findByIdAndUpdate(
+      riderId,
+      { location: geoLocation },  // Update location with GeoJSON format
+      { new: true }   // Return the updated rider object
+    );
+
+    // If rider not found
+    if (!rider) {
+      console.warn("[updateLocation] Rider not found:", riderId); // Debugging log
+      return res.status(404).json({ message: 'Rider not found' });
+    }
+
+    // Respond with the updated rider data
+    console.log("[updateLocation] Rider location updated successfully:", rider); // Debugging log
+    res.status(200).json({ message: 'Location updated successfully', rider });
+  } catch (error) {
+    console.error("[updateLocation] Error updating location:", error); // Debugging log
+    res.status(500).json({ message: 'Server error', details: error.message });
+  }
+};
+
+
 module.exports = {
   createRider,
   getRiderById,
@@ -189,5 +237,6 @@ module.exports = {
   getPendingDelivery,
   getActiveDelivery,
   acceptDelivery,
-  declineDelivery
+  declineDelivery,
+  updateLocation,
 };
