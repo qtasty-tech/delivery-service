@@ -45,19 +45,18 @@ const startConsumer = async () => {
       eachMessage: async ({ message }) => {
         try {
           const orderData = JSON.parse(message.value.toString());
-          console.log(`Processing order-ready event for order: ${orderData._id}`);
+          console.log(`Processing order-ready event for order: ${orderData.data._id}`);
           
-
           // Fetch restaurant details
           const restaurantResponse = await axios.get(
-            `http://restaurant-service:5001/api/restaurants/by-id/${orderData.restaurant}`,
+            `http://restaurant-service:5001/api/restaurants/by-id/${orderData.data.restaurant}`,
             {
               headers: { Authorization: `Bearer ${orderData.token || ''}` },
             }
           ).catch((error) => {
             console.error('Restaurant fetch error:', error.response?.data || error.message);
-            const fallbackCoords = Array.isArray(orderData.customerLocation?.coordinates) 
-              ? orderData.customerLocation.coordinates 
+            const fallbackCoords = Array.isArray(orderData.data.deliverylocation.coordinates) 
+              ? orderData.data.deliverylocation.coordinates
               : [-122.4194, 37.7749]; // San Francisco
             return {
               data: {
@@ -73,6 +72,11 @@ const startConsumer = async () => {
           const restaurantLocation = restaurantResponse.data.location && Array.isArray(restaurantResponse.data.location.coordinates)
             ? restaurantResponse.data.location
             : { type: 'Point', coordinates: [-122.4194, 37.7749] };
+
+          // Ensure valid customer location
+          const customerLocation = orderData.data.deliverylocation && Array.isArray(orderData.data.deliverylocation.coordinates)
+            ? orderData.data.deliverylocation
+            : { type: 'Point', coordinates: [-122.4194, 37.7749] }; 
 
           // Find the nearest available rider
           const nearestRider = await Rider.findOne({
@@ -96,7 +100,7 @@ const startConsumer = async () => {
 
           // Create delivery record
           const delivery = new Delivery({
-            orderId: orderData._id,
+            orderId: orderData.data._id,
             rider: nearestRider._id,
             status: 'assigned',
             restaurant: {
@@ -106,23 +110,23 @@ const startConsumer = async () => {
               phone: restaurantResponse.data.phone || 'Unknown',
             },
             customer: {
-              name: orderData.user?.name || 'Unknown Customer',
-              address: orderData.deliveryAddress || 'Unknown',
-              location: orderData.customerLocation || { type: 'Point', coordinates: [-122.4194, 37.7749] },
-              phone: orderData.user?.phone || 'Unknown',
+              name: orderData.data.customer || 'Unknown Customer',
+              address: orderData.data.deliveryAddress || 'Unknown',
+              location: customerLocation,
+              phone: orderData.data.phone || 'Unknown',
             },
             orderCode: generateOrderCode(),
-            items: orderData.items || [],
-            totalAmount: orderData.totalAmount || 0,
-            specialInstructions: orderData.specialInstructions || '',
-            paymentMethod: orderData.paymentMethod || 'unknown',
+            items: orderData.data.items || [],
+            totalAmount: orderData.data.totalAmount || 0,
+            specialInstructions: orderData.data.specialInstructions || '',
+            paymentMethod: orderData.data.paymentMethod || 'unknown',
             deliveryFee: 5,
-            deliveryAddress: orderData.deliveryAddress || 'Unknown',
-            deliveryTime: orderData.deliveryTime || new Date(Date.now() + 30 * 60 * 1000),
+            deliveryAddress: orderData.data.deliveryAddress || 'Unknown',
+            deliveryTime: orderData.data.deliveryTime || new Date(Date.now() + 30 * 60 * 1000),
           });
 
           await delivery.save();
-          console.log(`Delivery assigned to rider ${nearestRider._id} for order ${orderData._id}`);
+          console.log(`Delivery assigned to rider ${nearestRider._id} for order ${orderData.data._id}`);
         } catch (error) {
           console.error(`Error processing order-ready event: ${error.message}`, error.stack);
         }
