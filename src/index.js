@@ -4,18 +4,18 @@ const cors = require('cors');
 require('dotenv').config();
 const deliveryRoutes = require('./routes/deliveryRoutes');
 const { startConsumer } = require('./kafka/consumer');
-const { getDeliveryStatus } = require('./helpers/deliveryService');  // Import helper function
 
-// Create Express app
 const app = express();
 const PORT = process.env.PORT || 8000;
 
 // Middleware
 app.use(express.json());
 app.use(cors());
+
+// Routes
 app.use('/api', deliveryRoutes);
 
-// Health check route
+// Health check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK' });
 });
@@ -50,17 +50,18 @@ app.get('/api/delivery-progress/:orderId', async (req, res) => {
   });
 });
 
-// Connect to MongoDB and start Kafka consumer
 const startServer = async () => {
   try {
+    // Connect to MongoDB
     console.log('Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGO_URL);  // Use environment variables for the DB URL
+    await mongoose.connect(process.env.MONGO_URL);
     console.log('MongoDB connected');
 
+    // Start Kafka consumer
     console.log('Starting Kafka consumer...');
     await startConsumer();
 
-    // Start the Express app on the specified port
+    // Start server
     app.listen(PORT, () => {
       console.log(`Delivery Service running on port ${PORT}`);
     });
@@ -70,7 +71,9 @@ const startServer = async () => {
   }
 };
 
-// Start the server
-startServer();
+// Ensure single execution
+if (!module.parent) {
+  startServer();
+}
 
-module.exports = app;
+module.exports = app; 
