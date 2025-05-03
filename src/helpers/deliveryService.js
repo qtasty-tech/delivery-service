@@ -1,30 +1,61 @@
-// deliveryService.js
 const mongoose = require('mongoose');
-const Delivery = require('../models/Delivery'); // Delivery model
+const Delivery = require('../models/Delivery');
 
-// Helper function to get delivery status
 const getDeliveryStatus = async (orderId) => {
   try {
-    // Validate if orderId is a valid ObjectId
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
       throw new Error('Invalid orderId format');
     }
 
-    // Convert orderId to ObjectId properly using 'new'
-    const orderObjectId = new mongoose.Types.ObjectId(orderId);
-
-    // Fetch delivery status from the Delivery model
-    const delivery = await Delivery.findOne({ orderId: orderObjectId });
-
+    const delivery = await Delivery.findOne({ orderId }).lean();
     if (!delivery) {
-      throw new Error('Delivery not found');
+      return { status: 'pending', found: false };
     }
-
-    return delivery.status;  // Return the delivery status
+    return { status: delivery.status, found: true };
   } catch (error) {
     console.error('Error fetching delivery status:', error);
-    throw new Error(error.message);
+    throw error;
   }
 };
 
-module.exports = { getDeliveryStatus };
+const streamDeliveryStatus = async (req, res) => {
+  const { orderId } = req.params;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  let isConnectionAlive = true;
+
+  req.on('close', () => {
+    isConnectionAlive = false;
+    res.end();
+  });
+
+  const sendUpdate = async () => {
+    if (!isConnectionAlive) return;
+
+    try {
+      const { status } = await getDeliveryStatus(orderId);
+      res.write(`data: ${JSON.stringify({ deliveryStatus: status })}\n\n`);
+    } catch (error) {
+      console.error('Error in delivery update:', error);
+      res.write(`data: ${JSON.stringify({ error: 'Delivery update failed' })}\n\n`);
+    }
+  };
+
+  // Initial update
+  await sendUpdate();
+
+  // Periodic updates (every 3 seconds)
+  const interval = setInterval(() => {
+    if (isConnectionAlive) {
+      sendUpdate();
+    } else {
+      clearInterval(interval);
+    }
+  }, 3000);
+};
+
+module.exports = { getDeliveryStatus, streamDeliveryStatus };
