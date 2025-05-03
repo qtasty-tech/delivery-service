@@ -20,6 +20,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK' });
 });
 
+
 // SSE route to stream delivery status updates
 app.get('/api/delivery-progress/:orderId', async (req, res) => {
   const { orderId } = req.params;
