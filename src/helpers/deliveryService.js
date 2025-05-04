@@ -8,10 +8,7 @@ const getDeliveryStatus = async (orderId) => {
     }
 
     const delivery = await Delivery.findOne({ orderId }).lean();
-    if (!delivery) {
-      return { status: 'pending', found: false };
-    }
-    return { status: delivery.status, found: true };
+    return delivery ? { status: delivery.status, found: true } : { status: 'pending', found: false };
   } catch (error) {
     console.error('Error fetching delivery status:', error);
     throw error;
@@ -21,41 +18,59 @@ const getDeliveryStatus = async (orderId) => {
 const streamDeliveryStatus = async (req, res) => {
   const { orderId } = req.params;
 
+  // SSE setup
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  let isConnectionAlive = true;
-
-  req.on('close', () => {
-    isConnectionAlive = false;
-    res.end();
-  });
+  // Keep connection alive with periodic pings
+  const keepAliveInterval = setInterval(() => {
+    res.write(':ping\n\n');
+  }, 30000);
 
   const sendUpdate = async () => {
-    if (!isConnectionAlive) return;
-
     try {
       const { status } = await getDeliveryStatus(orderId);
-      res.write(`data: ${JSON.stringify({ deliveryStatus: status })}\n\n`);
+      res.write(`data: ${JSON.stringify({
+        deliveryStatus: status,
+        timestamp: new Date().toISOString()
+      })}\n\n`);
     } catch (error) {
-      console.error('Error in delivery update:', error);
-      res.write(`data: ${JSON.stringify({ error: 'Delivery update failed' })}\n\n`);
+      console.error('Delivery update error:', error);
+      res.write(`event: error\ndata: ${JSON.stringify({
+        error: 'Failed to fetch delivery status'
+      })}\n\n`);
     }
   };
 
   // Initial update
   await sendUpdate();
 
-  // Periodic updates (every 3 seconds)
-  const interval = setInterval(() => {
-    if (isConnectionAlive) {
-      sendUpdate();
-    } else {
-      clearInterval(interval);
-    }
-  }, 3000);
+  // Set up change stream if using MongoDB replica set
+  let changeStream;
+  try {
+    changeStream = Delivery.watch([{
+      $match: {
+        'fullDocument.orderId': orderId,
+        operationType: { $in: ['insert', 'update'] }
+      }
+    }]);
+
+    changeStream.on('change', sendUpdate);
+  } catch (err) {
+    console.log('Falling back to polling - change streams not available');
+    // Fallback to polling if change streams not available
+    const pollInterval = setInterval(sendUpdate, 3000);
+    req.on('close', () => clearInterval(pollInterval));
+  }
+
+  // Cleanup on client disconnect
+  req.on('close', () => {
+    clearInterval(keepAliveInterval);
+    if (changeStream) changeStream.close();
+    res.end();
+  });
 };
 
 module.exports = { getDeliveryStatus, streamDeliveryStatus };

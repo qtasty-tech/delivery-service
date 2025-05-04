@@ -2,6 +2,7 @@
 const deliveryRepository = require('../repositories/deliveryRepository');
 const axios = require('axios');
 
+
 // Create a new rider
 const createRider = async (riderData) => {
   const rider = await deliveryRepository.createRider(riderData);

@@ -2,6 +2,8 @@
 const deliveryService = require('../services/deliveryService');
 const cloudinary = require('cloudinary').v2;
 const Rider = require('../models/Rider'); 
+const Delivery = require('../models/Delivery');
+const mongoose = require('mongoose');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -226,6 +228,109 @@ const updateLocation = async (req, res) => {
   }
 };
 
+const getDeliveryStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ error: 'Invalid order ID format' });
+    }
+
+    const delivery = await Delivery.findOne({ orderId }).lean();
+    
+    if (!delivery) {
+      return res.status(200).json({ 
+        status: 'pending', 
+        found: false,
+        message: 'No delivery found for this order'
+      });
+    }
+
+    res.status(200).json({ 
+      status: delivery.status, 
+      found: true,
+      deliveryId: delivery._id,
+      updatedAt: delivery.updatedAt
+    });
+  } catch (error) {
+    console.error('Error fetching delivery status:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch delivery status',
+      details: error.message 
+    });
+  }
+};
+
+/**
+ * Stream delivery status updates via Server-Sent Events (SSE)
+ */
+const streamDeliveryStatus = async (req, res) => {
+  const { orderId } = req.params;
+
+  // Validate orderId format
+  if (!mongoose.Types.ObjectId.isValid(orderId)) {
+    return res.status(400).json({ error: 'Invalid order ID format' });
+  }
+
+  // SSE setup
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Keep connection alive with periodic pings
+  const keepAliveInterval = setInterval(() => {
+    res.write(':ping\n\n');
+  }, 30000);
+
+  const sendUpdate = async () => {
+    try {
+      const delivery = await Delivery.findOne({ orderId }).lean();
+      const status = delivery?.status || 'pending';
+      
+      res.write(`data: ${JSON.stringify({
+        deliveryStatus: status,
+        deliveryId: delivery?._id,
+        timestamp: new Date().toISOString()
+      })}\n\n`);
+    } catch (error) {
+      console.error('Delivery status error:', error);
+      res.write(`event: error\ndata: ${JSON.stringify({
+        error: 'Failed to fetch delivery status'
+      })}\n\n`);
+    }
+  };
+
+  // Initial update
+  await sendUpdate();
+
+  // Set up MongoDB change stream if replica set is configured
+  let changeStream;
+  try {
+    changeStream = Delivery.watch([{
+      $match: {
+        'fullDocument.orderId': orderId,
+        operationType: { $in: ['insert', 'update'] }
+      }
+    }]);
+
+    changeStream.on('change', async (change) => {
+      await sendUpdate();
+    });
+  } catch (err) {
+    console.log('Falling back to polling - change streams not available');
+    // Fallback to polling if change streams not available
+    const pollInterval = setInterval(sendUpdate, 3000);
+    req.on('close', () => clearInterval(pollInterval));
+  }
+
+  // Cleanup on client disconnect
+  req.on('close', () => {
+    clearInterval(keepAliveInterval);
+    if (changeStream) changeStream.close();
+    res.end();
+  });
+};
 
 module.exports = {
   createRider,
@@ -239,4 +344,6 @@ module.exports = {
   acceptDelivery,
   declineDelivery,
   updateLocation,
+  getDeliveryStatus,
+  streamDeliveryStatus,
 };

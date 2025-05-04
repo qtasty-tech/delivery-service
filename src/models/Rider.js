@@ -37,7 +37,7 @@ const RiderSchema = new mongoose.Schema({
     },
     coordinates: {
       type: [Number],  
-      required: true,
+      
     },
   },
   createdAt: { 
