@@ -24,7 +24,7 @@ router.post(
 router.get('/riders/:riderId', authMiddleware, deliveryController.getRiderById);
 
 // Get rider by user ID (protected route)
-router.get('/riders/user/:userId', authMiddleware, deliveryController.getRiderByUserId);
+router.get('/riders/user/:userId', deliveryController.getRiderByUserId);
 
 // Update rider location (protected route)
 router.put('/riders/updateLocation/:riderId', authMiddleware, deliveryController.updateLocation);
